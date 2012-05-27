@@ -1,0 +1,141 @@
+#!/usr/bin/env ruby
+# 1.9 adds realpath to resolve symlinks; 1.8 doesn't
+# have this method, so we add it so we get resolved symlinks
+# and compatibility
+unless File.respond_to? :realpath
+  class File #:nodoc:
+    def self.realpath path
+      return realpath(File.readlink(path)) if symlink?(path)
+      path
+    end
+  end
+end
+
+# add encode method to class String
+unless String.respond_to? :encode
+  require 'iconv'
+  class String 
+    def encode
+      Iconv.iconv('utf-8', 'gbk', self).first
+    end
+  end
+end
+
+
+$: << File.expand_path(File.dirname(File.realpath(__FILE__)) + '/../lib')
+require 'rubygems'
+require 'gli'
+require 'weblogin_config'
+require 'weblogin'
+require 'yaml'
+
+include Weblogin
+
+options = {
+  :username => ''
+  # :password = nil
+}
+
+
+if File.exists? CONFIG_FILE
+  config_options = YAML.load_file CONFIG_FILE
+  options.merge! config_options
+else
+  File.open CONFIG_FILE, 'w+' do |file|
+    YAML.dump(options, file)
+  end
+  puts "Init Configuration File in #{CONFIG_FILE}"
+end
+
+include GLI
+
+program_desc '用于北京工商大学上网登陆'
+
+version Weblogin::VERSION
+
+desc 'if remember account info'
+switch [:r,:remember]
+
+desc 'account name'
+default_value options[:username]
+arg_name '用户名'
+flag [:u, :username]
+
+desc 'account password'
+default_value ''
+arg_name '口令'
+flag [:p, :password]
+
+desc '登录'
+arg_name ''
+command :login do |c|
+
+  c.action do |global_options,options,args|
+
+    # Your command logic here
+     
+    # If you have any errors, just raise them
+    # raise "that command made no sense"
+    weblogin = WebLogin.new
+    if global_options[:p].empty?
+      # to be conftinued...
+      ui = Gem::StreamUI.new STDIN, STDOUT
+      pwd = ui.ask_for_password 'Password:'
+      puts "\n"
+      weblogin.login global_options[:u], pwd
+    else 
+      weblogin.login global_options[:u], global_options[:p]
+    end
+  end
+end
+
+desc '退出登录'
+arg_name ''
+command :logout do |c|
+  c.action do |global_options,options,args|
+    weblogin = WebLogin.new
+    weblogin.logout global_options[:u]
+  end
+end
+
+desc '查询账户信息'
+arg_name ''
+command :info do |c|
+  c.action do |global_options,options,args|
+    weblogin = WebLogin.new
+    if global_options[:p].empty?
+      # to be conftinued...
+      ui = Gem::StreamUI.new STDIN, STDOUT
+      pwd = ui.ask_for_password 'Password:'
+      puts "\n"
+      weblogin.info global_options[:u], pwd
+    else 
+      weblogin.info global_options[:u], global_options[:p]
+    end
+  end
+end
+
+pre do |global,command,options,args|
+  # Pre logic here
+  # Return true to proceed; false to abort and not call the
+  # chosen command
+  # Use skips_pre before a command to skip this block
+  # on that command only
+  true
+end
+
+post do |global,command,options,args|
+  # Post logic here
+  # Use skips_post before a command to skip this
+  # block on that command only
+end
+
+on_error do |exception|
+  # Error logic here
+  # return false to skip default error handling
+  logout_cmd = __FILE__ + ' logout'
+  system logout_cmd
+  false
+end
+
+exit GLI.run(ARGV)
