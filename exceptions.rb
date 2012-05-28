@@ -1,0 +1,2 @@
+class AccountOnlineException < Exception 
+end
