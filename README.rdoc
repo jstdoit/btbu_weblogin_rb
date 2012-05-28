@@ -2,5 +2,9 @@
 
 Client For Beijing Technology and Business WebLogin
 
-:include:weblogin.rdoc
+= Usage
+1. rake package
+2. cd pkg
+3. [sudo] gem install [gem package name]
+4. type `weblogin` you will get the usage help
 
