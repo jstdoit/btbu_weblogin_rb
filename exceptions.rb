@@ -1,2 +1,0 @@
-class AccountOnlineException < Exception 
-end
